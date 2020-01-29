@@ -4,7 +4,10 @@ import pandas as pd
 import re
 import dateutil
 import datetime
-import ctypes
+import smtplib, ssl
+import argparse
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def make_search_url(disciplines,jobs_per_page=25):
     '''
@@ -36,36 +39,6 @@ def get_all_jobs_soup(disciplines):
     soup = bs4.BeautifulSoup(response.text,'html.parser')
     
     return soup
-
-
-disciplines = ['biological-sciences',
-               'computer-sciences',
-               'engineering-and-technology',
-               'health-and-medical',
-               'physical-and-environmental-sciences']
-
-exclude_title = ['phd','part time','professor', 'lecturer',
-                 'biostatistician', 'aeronautic','clinical','nursing',
-                 'manager', 'epidemiology', 'high energy physics',
-                 'nuclear physics', 'chemistry']
-
-salary_range = (30000,100000)
-
-exclude_locations = ['coventry','belfast','birmingham','glasgow','preston',
-                     'leeds','newcastle','sheffield','nottingham','leicester',
-                     'manchester', 'edinburgh', 'liverpool', 'swansea',
-                     'southampton', 'lancaster', 'cardiff', 'bournemouth',
-                     'continue']
-
-if False:
-    soup = get_all_jobs_soup(disciplines)
-else:
-    #with open('jobs.html','r') as f:
-    #    soup = f.read()
-    pass
-
-jobs = soup.findAll("div", {"class": "j-search-result__result ie-border-left"})
-jobs += soup.findAll("div", {"class":"j-search-result__result j-search-result__result--highlighted ie-border-left"})
 
 
 def parse_job_result(job):
@@ -108,33 +81,106 @@ def get_job_description(href):
     job_desc = job_soup.find('div',{'id':'job-description'}).text
     return job_desc
 
-d = []
 
-for idx,job in enumerate(jobs):
-    title,department,employer,location,salary,date,href = parse_job_result(job)    
-    
-    #exclude jobs containing excluded title keywords
-    if any(s in title for s in exclude_title):
-        continue
-    
-    #exclude jobs by location
-    if any(s in location for s in exclude_locations):
-        continue
-    
-    #exclude salaries outside of range
-    if salary < salary_range[0] or salary > salary_range[1]:
-        continue
-    
-    job_desc = get_job_description(href)
-    
-    
-    d.append({'title':title,'department':department,'employer':employer,
-              'location':location,'salary':salary,'deadline':date,'href':href,'description':job_desc})
+def send_mail(sender_email,password,receiver_email,message):
+    port = 465  # For SSL
+    # Create a secure SSL context
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+        server.login(sender_email, password)
+        server.sendmail(sender_email, receiver_email, message)
 
-    print(title)
-    print(f'{idx+1} of {len(jobs)} processed')
+def make_message(sender_email,receiver_email,subject,HTML_body):
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = receiver_email    
+    msg.attach(MIMEText(HTML_body, 'html'))
+    return msg
 
-job_df = pd.DataFrame(d)
 
-#save to csv
-job_df.to_csv(f'job_df_{datetime.datetime.today().strftime("%Y-%m-%d")}.csv')
+def main(sender_email,receiver_email,password):
+    
+    disciplines = ['biological-sciences',
+               'computer-sciences',
+               'engineering-and-technology',
+               'health-and-medical',
+               'physical-and-environmental-sciences']
+
+    exclude_title = ['phd','part time','professor', 'lecturer',
+                     'biostatistician', 'aeronautic','clinical','nursing',
+                     'manager', 'epidemiology', 'high energy physics',
+                     'nuclear physics', 'chemistry']
+    
+    salary_range = (30000,100000)
+    
+    keep_locations = ['london','oxford','cambridge', 'brighton']
+    
+    exclude_disc = ['astro']
+    
+    keywords = ['optic', 'fluorescen']
+    
+    
+    soup = get_all_jobs_soup(disciplines)
+    
+    jobs = soup.findAll("div", {"class": "j-search-result__result ie-border-left"})
+    jobs += soup.findAll("div", {"class":"j-search-result__result j-search-result__result--highlighted ie-border-left"})
+
+   
+    d = []
+    
+
+    for idx,job in enumerate(jobs):
+        title,department,employer,location,salary,date,href = parse_job_result(job)    
+        
+        #exclude jobs containing excluded title keywords
+        if any(s in title for s in exclude_title):
+            continue
+        
+        #exclude jobs by location
+        if not any(s in location for s in keep_locations):
+            continue
+        
+        #exclude salaries outside of range
+        if salary < salary_range[0] or salary > salary_range[1]:
+            continue
+        
+        job_desc = get_job_description(href)
+        
+        if any(s in job_desc for s in exclude_disc):
+            continue
+        
+        if any(s in job_desc for s in keywords):
+            hit = True
+        else:
+            hit = False
+        
+        d.append({'title':title,'department':department,'employer':employer,
+                  'location':location,'salary':salary,'deadline':date,
+                  'href':href,'description':job_desc,
+                  'keyword_hit':hit})
+    
+        print(title)
+        print(f'{idx+1} of {len(jobs)} processed')
+    
+    job_df = pd.DataFrame(d)
+    
+    #save to csv
+    job_df.to_csv(f'job_df_{datetime.datetime.today().strftime("%Y-%m-%d")}.csv')
+    
+    #send pertinent jobs to email
+    df = job_df[(job_df.keyword_hit)]    
+    msg = make_message(sender_email,receiver_email,'Job Scraping',df.loc[:,['description','employer']].to_html())
+    send_mail(sender_email,password,receiver_email,msg.as_string())
+    
+    
+if __name__ == '__main__':
+    #requires a gmail account with downgraded security :(
+    parser = argparse.ArgumentParser()
+    parser.add_argument('sender_email', type = str)
+    parser.add_argument('password',type = str)
+    parser.add_argument('receiver_email', type = str)
+
+    args = parser.parse_args()
+    
+    main(args.sender_email,args.receiver_email,args.password)
