@@ -101,7 +101,7 @@ def make_message(receiver_email,subject,HTML_body):
     return msg
 
 
-def main(receiver_email,password):
+def main(receiver_email):
     
     disciplines = ['biological-sciences',
                'computer-sciences',
@@ -172,16 +172,15 @@ def main(receiver_email,password):
     
     #send pertinent jobs to email
     df = job_df[(job_df.keyword_hit)]    
-    msg = make_message(sender_email,receiver_email,'Job Scraping',df.loc[:,['description','employer']].to_html())
-    send_mail(sender_email,password,receiver_email,msg.as_string())
+    msg = make_message(receiver_email,'Job Scraping',df.loc[:,['description','employer']].to_html())
+    send_mail(receiver_email,msg.as_string(),'Job Scraping',)
     
     
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('password',type = str)
     parser.add_argument('receiver_email', type = str)
 
     args = parser.parse_args()
     
-    main(args.receiver_email,args.password)
+    main(args.receiver_email)
