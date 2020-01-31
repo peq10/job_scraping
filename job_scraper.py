@@ -8,6 +8,8 @@ import smtplib, ssl
 import argparse
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import subprocess
+import shlex
 
 def make_search_url(disciplines,jobs_per_page=25):
     '''
@@ -82,24 +84,24 @@ def get_job_description(href):
     return job_desc
 
 
-def send_mail(sender_email,password,receiver_email,message):
-    port = 465  # For SSL
-    # Create a secure SSL context
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-        server.login(sender_email, password)
-        server.sendmail(sender_email, receiver_email, message)
+def send_mail(receiver_email,message,subject):
+    bash_command1 = f'echo "{message}"'
+    bash_command2 =  f'mail -s "{subject}" {receiver_email}'
 
-def make_message(sender_email,receiver_email,subject,HTML_body):
+    ps = subprocess.Popen(shlex.split(bash_command1), stdout=subprocess.PIPE)
+    _ = subprocess.check_output(shlex.split(bash_command2), stdin=ps.stdout)
+    
+    
+    
+def make_message(receiver_email,subject,HTML_body):
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
-    msg['From'] = sender_email
     msg['To'] = receiver_email    
     msg.attach(MIMEText(HTML_body, 'html'))
     return msg
 
 
-def main(sender_email,receiver_email,password):
+def main(receiver_email,password):
     
     disciplines = ['biological-sciences',
                'computer-sciences',
@@ -175,12 +177,11 @@ def main(sender_email,receiver_email,password):
     
     
 if __name__ == '__main__':
-    #requires a gmail account with downgraded security :(
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('sender_email', type = str)
     parser.add_argument('password',type = str)
     parser.add_argument('receiver_email', type = str)
 
     args = parser.parse_args()
     
-    main(args.sender_email,args.receiver_email,args.password)
+    main(args.receiver_email,args.password)
