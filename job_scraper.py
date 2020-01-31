@@ -86,20 +86,11 @@ def get_job_description(href):
 
 def send_mail(receiver_email,message,subject):
     bash_command1 = f'echo "{message}"'
-    bash_command2 =  f'mail -s "{subject}" {receiver_email}'
+    bash_command2 =  f'mailx -a "Content-Type: text/html" -s "{subject}" {receiver_email}'
 
     ps = subprocess.Popen(shlex.split(bash_command1), stdout=subprocess.PIPE)
     _ = subprocess.check_output(shlex.split(bash_command2), stdin=ps.stdout)
     
-    
-    
-def make_message(receiver_email,subject,HTML_body):
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['To'] = receiver_email    
-    msg.attach(MIMEText(HTML_body, 'html'))
-    return msg
-
 
 def main(receiver_email):
     
@@ -172,8 +163,7 @@ def main(receiver_email):
     
     #send pertinent jobs to email
     df = job_df[(job_df.keyword_hit)]    
-    msg = make_message(receiver_email,'Job Scraping',df.loc[:,['description','employer']].to_html())
-    send_mail(receiver_email,msg.as_string(),'Job Scraping',)
+    send_mail(receiver_email,df.loc[:,['description','employer']].to_html(),'Job Scraping',)
     
     
 if __name__ == '__main__':
