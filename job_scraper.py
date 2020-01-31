@@ -102,13 +102,13 @@ def main(receiver_email):
                      'manager', 'epidemiology', 'high energy physics',
                      'nuclear physics', 'chemistry']
     
-    salary_range = (70000,100000)
+    salary_range = (30000,100000)
     
     keep_locations = ['london','oxford','cambridge', 'brighton']
     
     exclude_disc = ['astro']
     
-    keywords = ['optic', 'fluorescen','CCT']
+    keywords = ['optic', 'fluorescen']
     
     
     soup = get_all_jobs_soup(disciplines)
