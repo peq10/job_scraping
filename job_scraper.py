@@ -4,12 +4,10 @@ import pandas as pd
 import re
 import dateutil
 import datetime
-import smtplib, ssl
 import argparse
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import subprocess
 import shlex
+import ast
 
 def make_search_url(disciplines,jobs_per_page=25):
     '''
@@ -83,7 +81,6 @@ def get_job_description(href):
     job_desc = job_soup.find('div',{'id':'job-description'}).text
     return job_desc
 
-
 def send_mail(receiver_email,message,subject):
     bash_command1 = f'echo "{message}"'
     bash_command2 =  f'mailx -a "Content-Type: text/html" -s "{subject}" {receiver_email}'
@@ -105,13 +102,13 @@ def main(receiver_email):
                      'manager', 'epidemiology', 'high energy physics',
                      'nuclear physics', 'chemistry']
     
-    salary_range = (30000,100000)
+    salary_range = (70000,100000)
     
     keep_locations = ['london','oxford','cambridge', 'brighton']
     
     exclude_disc = ['astro']
     
-    keywords = ['optic', 'fluorescen']
+    keywords = ['optic', 'fluorescen','CCT']
     
     
     soup = get_all_jobs_soup(disciplines)
